@@ -64,12 +64,12 @@ let originalPalette = [];
 let palettesData = {};    
 let activePalette = "normal";
 
-// Initialize empty safe datasets explicitly
+// Initialize data with non-bracket property descriptors to ensure clean runtime layout execution
 for (let n = 0; n < PALETTE_NAMES.length; n++) {
     let name = PALETTE_NAMES[n];
     palettesData[name] = [];
     for (let c = 0; c < 16; c++) {
-        palettesData[name].push([0, 0, 0]);
+        palettesData[name].push({ red: 0, green: 0, blue: 0 });
     }
 }
 
@@ -78,10 +78,7 @@ const gridContainer = document.getElementById("matrixGrid");
 for (let n = 0; n < PALETTE_NAMES.length; n++) {
     let name = PALETTE_NAMES[n];
     const cell = document.createElement("div");
-    cell.className = "grid-cell";
-    if (name === activePalette) {
-        cell.className = "grid-cell active";
-    }
+    cell.className = (name === activePalette) ? "grid-cell active" : "grid-cell";
     cell.id = "cell-" + name;
     cell.onclick = function() { selectPalette(name); };
 
@@ -117,27 +114,26 @@ document.getElementById("spriteInput").addEventListener("change", function(e) {
         const uniqueColors = [];
         const data = baseImageData.data;
         for (let i = 0; i < data.length; i += 4) {
-            if (data[i+3] === 0) continue; // Skip completely transparent pixels
-            const r = data[i];
-            const g = data[i+1];
-            const b = data[i+2];
+            if (data[i+3] === 0) continue; // Skip transparency
+            const rVal = data[i];
+            const gVal = data[i+1];
+            const bVal = data[i+2];
             
             let found = false;
             for (let u = 0; u < uniqueColors.length; u++) {
-                if (uniqueColors[u][0] === r && uniqueColors[u][1] === g && uniqueColors[u][2] === b) {
+                if (uniqueColors[u].red === rVal && uniqueColors[u].green === gVal && uniqueColors[u].blue === bVal) {
                     found = true;
                     break;
                 }
             }
             if (!found) {
-                uniqueColors.push([r, g, b]);
+                uniqueColors.push({ red: rVal, green: gVal, blue: bVal });
                 if (uniqueColors.length >= 16) break;
             }
         }
         
-        // Ensure we have exactly 16 colors allocated
         while (uniqueColors.length < 16) {
-            uniqueColors.push([0, 0, 0]);
+            uniqueColors.push({ red: 0, green: 0, blue: 0 });
         }
         originalPalette = uniqueColors;
 
@@ -146,7 +142,11 @@ document.getElementById("spriteInput").addEventListener("change", function(e) {
             let name = PALETTE_NAMES[n];
             palettesData[name] = [];
             for (let c = 0; c < originalPalette.length; c++) {
-                palettesData[name].push([originalPalette[c][0], originalPalette[c][1], originalPalette[c][2]]);
+                palettesData[name].push({
+                    red: originalPalette[c].red,
+                    green: originalPalette[c].green,
+                    blue: originalPalette[c].blue
+                });
             }
         }
 
@@ -183,10 +183,9 @@ function renderActiveSwatches() {
         label.className = "swatch-idx";
         label.innerText = "Idx " + String(idx).padStart(2, '0') + ":";
 
-        // Hex string math helper
-        const hexR = String(rgb[0].toString(16)).padStart(2, '0');
-        const hexG = String(rgb[1].toString(16)).padStart(2, '0');
-        const hexB = String(rgb[2].toString(16)).padStart(2, '0');
+        const hexR = String(rgb.red.toString(16)).padStart(2, '0');
+        const hexG = String(rgb.green.toString(16)).padStart(2, '0');
+        const hexB = String(rgb.blue.toString(16)).padStart(2, '0');
         const hex = "#" + hexR + hexG + hexB;
 
         const input = document.createElement("input");
@@ -198,7 +197,7 @@ function renderActiveSwatches() {
         const valDisplay = document.createElement("div");
         valDisplay.className = "rgb-vals";
         valDisplay.id = "rgb-text-" + idx;
-        valDisplay.innerText = "R:" + String(rgb[0]).padStart(3,' ') + " G:" + String(rgb[1]).padStart(3,' ') + " B:" + String(rgb[2]).padStart(3,' ');
+        valDisplay.innerText = "R:" + String(rgb.red).padStart(3,' ') + " G:" + String(rgb.green).padStart(3,' ') + " B:" + String(rgb.blue).padStart(3,' ');
 
         row.appendChild(label);
         row.appendChild(input);
@@ -212,7 +211,10 @@ function updateColorIndex(idx, hexVal) {
     const g = parseInt(hexVal.slice(3, 5), 16);
     const b = parseInt(hexVal.slice(5, 7), 16);
     
-    palettesData[activePalette][idx] = [r, g, b];
+    palettesData[activePalette][idx].red = r;
+    palettesData[activePalette][idx].green = g;
+    palettesData[activePalette][idx].blue = b;
+    
     document.getElementById("rgb-text-" + idx).innerText = "R:" + String(r).padStart(3,' ') + " G:" + String(g).padStart(3,' ') + " B:" + String(b).padStart(3,' ');
     
     renderSinglePreview(activePalette);
@@ -225,9 +227,9 @@ function renderSinglePreview(name) {
     
     const tempCanvas = document.createElement("canvas");
     tempCanvas.width = baseImageData.width;
-    tempCanvas.height = baseImageData.height;
-    const tempCtx = tempCanvas.getContext("2d");
-    const imgDataCopy = tempCtx.createImageData(baseImageData.width, baseImageData.height);
+tempCanvas.height = baseImageData.height;
+const tempCtx = tempCanvas.getContext("2d");
+const imgDataCopy = tempCtx.createImageData(baseImageData.width, baseImageData.height);
 const srcData = baseImageData.data;
 const destData = imgDataCopy.data;
 const currentColors = palettesData[name];
@@ -243,16 +245,16 @@ const g = srcData[i+1];
 const b = srcData[i+2];
 for (let j = 0; j < originalPalette.length; j++) {
 const orig = originalPalette[j];
-const dist = Math.abs(r - orig[0]) + Math.abs(g - orig[1]) + Math.abs(b - orig);
+const dist = Math.abs(r - orig.red) + Math.abs(g - orig.green) + Math.abs(b - orig.blue);
 if (dist < minDistance) {
 minDistance = dist;
 matchIdx = j;
 }
 }
 const targetColor = currentColors[matchIdx];
-destData[i] = targetColor[0];
-destData[i+1] = targetColor[1];
-destData[i+2] = targetColor;
+destData[i] = targetColor.red;
+destData[i+1] = targetColor.green;
+destData[i+2] = targetColor.blue;
 destData[i+3] = 255;
 }
 tempCtx.putImageData(imgDataCopy, 0, 0);
@@ -273,7 +275,7 @@ let name = PALETTE_NAMES[n];
 let content = "JASC-PAL\r\n0100\r\n16\r\n";
 let colors = palettesData[name];
 for (let c = 0; c < colors.length; c++) {
-content += colors[c][0] + " " + colors[c][1] + " " + colors[c] + "\r\n";
+content += colors[c].red + " " + colors[c].green + " " + colors[c].blue + "\r\n";
 }
 zip.file(name + ".pal", content);
 }
@@ -284,4 +286,3 @@ link.download = "pokemon_28_palettes.zip";
 link.click();
 });
 }
-
