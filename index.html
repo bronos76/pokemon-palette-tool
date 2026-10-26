@@ -8,15 +8,15 @@
     <script src="https://cloudflare.com"></script>
     <style>
         :root { --bg: #1e1e1e; --panel: #2d2d2d; --text: #ffffff; --accent: #007acc; }
-        body { margin: 0; padding: 10px; font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif; bg-color: var(--bg); color: var(--text); background: var(--bg); }
+        body { margin: 0; padding: 10px; font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif; background: var(--bg); color: var(--text); }
         .header-actions { display: flex; justify-content: space-between; gap: 10px; margin-bottom: 15px; }
-        .btn { background: var(--accent); color: white; border: none; padding: 12px; border-radius: 6px; font-weight: bold; flex: 1; text-align: center; font-size: 14px; box-shadow: 0 2px 4px rgba(0,0,0,0.2); }
-        .btn-file { background: #4caf50; position: relative; overflow: hidden; }
-        .btn-file input { position: absolute; top: 0; right: 0; min-width: 100%; min-height: 100%; font-size: 100px; text-align: right; opacity: 0; outline: none; cursor: inherit; display: block; }
+        .btn { background: var(--accent); color: white; border: none; padding: 12px; border-radius: 6px; font-weight: bold; flex: 1; text-align: center; font-size: 14px; box-shadow: 0 2px 4px rgba(0,0,0,0.2); cursor: pointer; }
+        .btn-file { background: #4caf50; position: relative; overflow: hidden; display: flex; justify-content: center; align-items: center; }
+        .btn-file input { position: absolute; top: 0; right: 0; min-width: 100%; min-height: 100%; font-size: 100px; text-align: right; opacity: 0; outline: none; cursor: pointer; display: block; }
         
         /* 4x7 Mobile Grid CSS Layout Matrix */
         .matrix-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 6px; margin-bottom: 20px; }
-        .grid-cell { background: var(--panel); border: 2px solid transparent; border-radius: 6px; padding: 4px; text-align: center; }
+        .grid-cell { background: var(--panel); border: 2px solid transparent; border-radius: 6px; padding: 4px; text-align: center; cursor: pointer; }
         .grid-cell.active { border-color: var(--accent); background: #3d3d3d; }
         .cell-title { font-size: 9px; font-weight: bold; text-transform: uppercase; margin-bottom: 4px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
         .sprite-preview { width: 100%; aspect-ratio: 1; background: #333; image-rendering: pixelated; border-radius: 4px; }
@@ -26,7 +26,7 @@
         .editor-title { margin-top: 0; color: #007acc; font-size: 18px; border-bottom: 1px solid #444; padding-bottom: 5px; }
         .swatch-row { display: flex; align-items: center; margin-bottom: 8px; background: rgba(0,0,0,0.15); padding: 6px; border-radius: 4px; }
         .swatch-idx { font-family: monospace; font-size: 12px; width: 60px; }
-        .color-picker-input { width: 45px; height: 30px; border: none; padding: 0; background: none; border-radius: 4px; margin-right: 15px; }
+        .color-picker-input { width: 45px; height: 30px; border: none; padding: 0; background: none; border-radius: 4px; margin-right: 15px; cursor: pointer; }
         .rgb-vals { font-family: monospace; font-size: 12px; color: #aaa; }
     </style>
 </head>
@@ -59,14 +59,14 @@ const PALETTE_NAMES = [
     "sapphire", "tidal", "emerald"
 ];
 
-let baseImageData = null; // Canvas source reference element properties
-let originalPalette = []; // Array of {r,g,b} profiles built off template data properties 
-let palettesData = {};    // Structure layout properties mapping: { name: [ [r,g,b], ... ] }
+let baseImageData = null; 
+let originalPalette = []; 
+let palettesData = {};    
 let activePalette = "normal";
 
-// Initialize empty tracking registry lists structure block arrays components loops logic matrix
+// Initialize empty data sets
 PALETTE_NAMES.forEach(name => {
-    palettesData[name] = Array.from({length: 16}, () => [0,0,0]);
+    palettesData[name] = Array.from({length: 16}, () => [0, 0, 0]);
 });
 
 // Setup touch matrix interface frame grid elements items loops
@@ -98,7 +98,6 @@ document.getElementById("spriteInput").addEventListener("change", function(e) {
 
     const img = new Image();
     img.onload = function() {
-        // Render image onto hidden processing canvas to grab raw data structure color palette metadata array sequences profiles 
         const processingCanvas = document.createElement("canvas");
         const ctx = processingCanvas.getContext("2d");
         processingCanvas.width = img.width;
@@ -106,21 +105,26 @@ document.getElementById("spriteInput").addEventListener("change", function(e) {
         ctx.drawImage(img, 0, 0);
         baseImageData = ctx.getImageData(0, 0, img.width, img.height);
 
-        // Gather unique colors up to 16 color layers boundary markers indexes values loops elements checks properties definitions profiles bounds 
+        // Gather unique color combinations present in the template PNG
         const uniqueColors = [];
         const data = baseImageData.data;
         for (let i = 0; i < data.length; i += 4) {
-            if (data[i+3] === 0) continue; // Skip alpha rows layout bounds parameters maps blocks 
-            const rgb = [data[i], data[i+1], data[i+2]];
-            if (!uniqueColors.some(c => c[0]===rgb[0] && c[1]===rgb[1] && c[2]===rgb[2])) {
-                uniqueColors.push(rgb);
+            if (data[i+3] === 0) continue; // Skip transparency
+            const r = data[i];
+            const g = data[i+1];
+            const b = data[i+2];
+            
+            if (!uniqueColors.some(c => c[0] === r && c[1] === g && c[2] === b)) {
+                uniqueColors.push([r, g, b]);
                 if (uniqueColors.length >= 16) break;
             }
         }
-        while(uniqueColors.length < 16) uniqueColors.push([0,0,0]);
+        while(uniqueColors.length < 16) {
+            uniqueColors.push([0, 0, 0]);
+        }
         originalPalette = uniqueColors;
 
-        // Spread base profile allocations elements mapping sequences tracking properties profiles allocations lists 
+        // Duplicate base colors to every single phenotype profile slot
         PALETTE_NAMES.forEach(name => {
             palettesData[name] = originalPalette.map(color => [...color]);
         });
@@ -133,7 +137,9 @@ document.getElementById("spriteInput").addEventListener("change", function(e) {
 
 function selectPalette(name) {
     document.querySelectorAll(".grid-cell").forEach(c => c.classList.remove("active"));
-    document.getElementById(`cell-${name}`).classList.add("active");
+    const activeCell = document.getElementById(`cell-${name}`);
+    if (activeCell) activeCell.classList.add("active");
+    
     activePalette = name;
     document.getElementById("activeTitle").innerText = `Active: PALETTE_${name.toUpperCase()}`;
     renderActiveSwatches();
@@ -187,7 +193,6 @@ function renderSinglePreview(name) {
     const canvas = document.getElementById(`canvas-${name}`);
     const ctx = canvas.getContext("2d");
     
-    // Scale tracking box sizes dynamically configurations properties frame block bounds elements parameters loops
     const tempCanvas = document.createElement("canvas");
     tempCanvas.width = baseImageData.width;
     tempCanvas.height = baseImageData.height;
@@ -204,25 +209,30 @@ function renderSinglePreview(name) {
             continue;
         }
         
-        // Find closest source array indexing configurations mapping parameters 
         let matchIdx = 0;
         let minDistance = Infinity;
+        const r = srcData[i];
+        const g = srcData[i+1];
+        const b = srcData[i+2];
+
         for (let j = 0; j < originalPalette.length; j++) {
             const orig = originalPalette[j];
-            const dist = Math.abs(srcData[i]-orig[0]) + Math.abs(srcData[i+1]-orig[1]) + Math.abs(srcData[i+2]-orig[2]);
-if (dist < minDistance) {
-minDistance = dist;
-matchIdx = j;
-}
-}
-const targetColor = currentColors[matchIdx];
-destData[i] = targetColor[0];
-destData[i+1] = targetColor[1];
-destData[i+2] = targetColor[2];
-destData[i+3] = 255;
-}
-tempCtx.putImageData(imgDataCopy, 0, 0);
-ctx.clearRect(0,0,64,64);
+            const dist = Math.abs(r - orig[0]) + Math.abs(g - orig[1]) + Math.abs(b - orig[2]);
+            if (dist < minDistance) {
+                minDistance = dist;
+                matchIdx = j;
+            }
+        }
+
+        const targetColor = currentColors[matchIdx];
+        destData[i] = targetColor[0];
+        destData[i+1] = targetColor[1];
+        destData[i+2] = targetColor[2];
+        destData[i+3] = 255;
+    }
+
+    tempCtx.putImageData(imgDataCopy, 0, 0);
+    ctx.clearRect(0,0,64,64);
 ctx.imageSmoothingEnabled = false;
 ctx.drawImage(tempCanvas, 0, 0, 64, 64);
 }
@@ -233,9 +243,9 @@ function exportPalettesZip() {
 if (!baseImageData) return alert("Please load a base sprite image first!");
 const zip = new JSZip();
 PALETTE_NAMES.forEach(name => {
-let content = "JASC-PAL\n0100\n16\n";
+let content = "JASC-PAL\r\n0100\r\n16\r\n";
 palettesData[name].forEach(rgb => {
-content += ${rgb[0]} ${rgb[1]} ${rgb[2]}\n;
+content += ${rgb[0]} ${rgb[1]} ${rgb[2]}\r\n;
 });
 zip.file(${name}.pal, content);
 });
