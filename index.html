@@ -64,18 +64,26 @@ let originalPalette = [];
 let palettesData = {};    
 let activePalette = "normal";
 
-// Initialize empty data sets
-PALETTE_NAMES.forEach(name => {
-    palettesData[name] = Array.from({length: 16}, () => [0, 0, 0]);
-});
+// Initialize empty safe datasets explicitly
+for (let n = 0; n < PALETTE_NAMES.length; n++) {
+    let name = PALETTE_NAMES[n];
+    palettesData[name] = [];
+    for (let c = 0; c < 16; c++) {
+        palettesData[name].push([0, 0, 0]);
+    }
+}
 
-// Setup touch matrix interface frame grid elements items loops
+// Setup touch matrix interface elements dynamically
 const gridContainer = document.getElementById("matrixGrid");
-PALETTE_NAMES.forEach(name => {
+for (let n = 0; n < PALETTE_NAMES.length; n++) {
+    let name = PALETTE_NAMES[n];
     const cell = document.createElement("div");
-    cell.className = `grid-cell ${name === activePalette ? 'active' : ''}`;
-    cell.id = `cell-${name}`;
-    cell.onclick = () => selectPalette(name);
+    cell.className = "grid-cell";
+    if (name === activePalette) {
+        cell.className = "grid-cell active";
+    }
+    cell.id = "cell-" + name;
+    cell.onclick = function() { selectPalette(name); };
 
     const title = document.createElement("div");
     title.className = "cell-title";
@@ -85,12 +93,12 @@ PALETTE_NAMES.forEach(name => {
     canvas.className = "sprite-preview";
     canvas.width = 64;
     canvas.height = 64;
-    canvas.id = `canvas-${name}`;
+    canvas.id = "canvas-" + name;
 
     cell.appendChild(title);
     cell.appendChild(canvas);
     gridContainer.appendChild(cell);
-});
+}
 
 document.getElementById("spriteInput").addEventListener("change", function(e) {
     const file = e.target.files[0];
@@ -109,25 +117,38 @@ document.getElementById("spriteInput").addEventListener("change", function(e) {
         const uniqueColors = [];
         const data = baseImageData.data;
         for (let i = 0; i < data.length; i += 4) {
-            if (data[i+3] === 0) continue; // Skip transparency
+            if (data[i+3] === 0) continue; // Skip completely transparent pixels
             const r = data[i];
             const g = data[i+1];
             const b = data[i+2];
             
-            if (!uniqueColors.some(c => c[0] === r && c[1] === g && c[2] === b)) {
+            let found = false;
+            for (let u = 0; u < uniqueColors.length; u++) {
+                if (uniqueColors[u][0] === r && uniqueColors[u][1] === g && uniqueColors[u][2] === b) {
+                    found = true;
+                    break;
+                }
+            }
+            if (!found) {
                 uniqueColors.push([r, g, b]);
                 if (uniqueColors.length >= 16) break;
             }
         }
-        while(uniqueColors.length < 16) {
+        
+        // Ensure we have exactly 16 colors allocated
+        while (uniqueColors.length < 16) {
             uniqueColors.push([0, 0, 0]);
         }
         originalPalette = uniqueColors;
 
         // Duplicate base colors to every single phenotype profile slot
-        PALETTE_NAMES.forEach(name => {
-            palettesData[name] = originalPalette.map(color => [...color]);
-        });
+        for (let n = 0; n < PALETTE_NAMES.length; n++) {
+            let name = PALETTE_NAMES[n];
+            palettesData[name] = [];
+            for (let c = 0; c < originalPalette.length; c++) {
+                palettesData[name].push([originalPalette[c][0], originalPalette[c][1], originalPalette[c][2]]);
+            }
+        }
 
         refreshAllPreviews();
         selectPalette("normal");
@@ -136,12 +157,15 @@ document.getElementById("spriteInput").addEventListener("change", function(e) {
 });
 
 function selectPalette(name) {
-    document.querySelectorAll(".grid-cell").forEach(c => c.classList.remove("active"));
-    const activeCell = document.getElementById(`cell-${name}`);
+    const cells = document.querySelectorAll(".grid-cell");
+    for (let i = 0; i < cells.length; i++) {
+        cells[i].classList.remove("active");
+    }
+    const activeCell = document.getElementById("cell-" + name);
     if (activeCell) activeCell.classList.add("active");
     
     activePalette = name;
-    document.getElementById("activeTitle").innerText = `Active: PALETTE_${name.toUpperCase()}`;
+    document.getElementById("activeTitle").innerText = "Active: PALETTE_" + name.toUpperCase();
     renderActiveSwatches();
 }
 
@@ -150,31 +174,37 @@ function renderActiveSwatches() {
     listContainer.innerHTML = "";
     const colors = palettesData[activePalette];
 
-    colors.forEach((rgb, idx) => {
+    for (let idx = 0; idx < colors.length; idx++) {
+        const rgb = colors[idx];
         const row = document.createElement("div");
         row.className = "swatch-row";
 
         const label = document.createElement("div");
         label.className = "swatch-idx";
-        label.innerText = `Idx ${String(idx).padStart(2, '0')}:`;
+        label.innerText = "Idx " + String(idx).padStart(2, '0') + ":";
 
-        const hex = "#" + rgb.map(x => String(x.toString(16)).padStart(2, '0')).join("");
+        // Hex string math helper
+        const hexR = String(rgb[0].toString(16)).padStart(2, '0');
+        const hexG = String(rgb[1].toString(16)).padStart(2, '0');
+        const hexB = String(rgb[2].toString(16)).padStart(2, '0');
+        const hex = "#" + hexR + hexG + hexB;
+
         const input = document.createElement("input");
         input.type = "color";
         input.className = "color-picker-input";
         input.value = hex;
-        input.oninput = (e) => updateColorIndex(idx, e.target.value);
+        input.oninput = function(e) { updateColorIndex(idx, e.target.value); };
 
         const valDisplay = document.createElement("div");
         valDisplay.className = "rgb-vals";
-        valDisplay.id = `rgb-text-${idx}`;
-        valDisplay.innerText = `R:${String(rgb[0]).padStart(3,' ')} G:${String(rgb[1]).padStart(3,' ')} B:${String(rgb[2]).padStart(3,' ')}`;
+        valDisplay.id = "rgb-text-" + idx;
+        valDisplay.innerText = "R:" + String(rgb[0]).padStart(3,' ') + " G:" + String(rgb[1]).padStart(3,' ') + " B:" + String(rgb[2]).padStart(3,' ');
 
         row.appendChild(label);
         row.appendChild(input);
         row.appendChild(valDisplay);
         listContainer.appendChild(row);
-    });
+    }
 }
 
 function updateColorIndex(idx, hexVal) {
@@ -183,14 +213,14 @@ function updateColorIndex(idx, hexVal) {
     const b = parseInt(hexVal.slice(5, 7), 16);
     
     palettesData[activePalette][idx] = [r, g, b];
-    document.getElementById(`rgb-text-${idx}`).innerText = `R:${String(r).padStart(3,' ')} G:${String(g).padStart(3,' ')} B:${String(b).padStart(3,' ')}`;
+    document.getElementById("rgb-text-" + idx).innerText = "R:" + String(r).padStart(3,' ') + " G:" + String(g).padStart(3,' ') + " B:" + String(b).padStart(3,' ');
     
     renderSinglePreview(activePalette);
 }
 
 function renderSinglePreview(name) {
     if (!baseImageData) return;
-    const canvas = document.getElementById(`canvas-${name}`);
+    const canvas = document.getElementById("canvas-" + name);
     const ctx = canvas.getContext("2d");
     
     const tempCanvas = document.createElement("canvas");
@@ -198,57 +228,55 @@ function renderSinglePreview(name) {
     tempCanvas.height = baseImageData.height;
     const tempCtx = tempCanvas.getContext("2d");
     const imgDataCopy = tempCtx.createImageData(baseImageData.width, baseImageData.height);
-
-    const srcData = baseImageData.data;
-    const destData = imgDataCopy.data;
-    const currentColors = palettesData[name];
-
-    for (let i = 0; i < srcData.length; i += 4) {
-        if (srcData[i+3] === 0) {
-            destData[i+3] = 0;
-            continue;
-        }
-        
-        let matchIdx = 0;
-        let minDistance = Infinity;
-        const r = srcData[i];
-        const g = srcData[i+1];
-        const b = srcData[i+2];
-
-        for (let j = 0; j < originalPalette.length; j++) {
-            const orig = originalPalette[j];
-            const dist = Math.abs(r - orig[0]) + Math.abs(g - orig[1]) + Math.abs(b - orig[2]);
-            if (dist < minDistance) {
-                minDistance = dist;
-                matchIdx = j;
-            }
-        }
-
-        const targetColor = currentColors[matchIdx];
-        destData[i] = targetColor[0];
-        destData[i+1] = targetColor[1];
-        destData[i+2] = targetColor[2];
-        destData[i+3] = 255;
-    }
-
-    tempCtx.putImageData(imgDataCopy, 0, 0);
-    ctx.clearRect(0,0,64,64);
+const srcData = baseImageData.data;
+const destData = imgDataCopy.data;
+const currentColors = palettesData[name];
+for (let i = 0; i < srcData.length; i += 4) {
+if (srcData[i+3] === 0) {
+destData[i+3] = 0;
+continue;
+}
+let matchIdx = 0;
+let minDistance = Infinity;
+const r = srcData[i];
+const g = srcData[i+1];
+const b = srcData[i+2];
+for (let j = 0; j < originalPalette.length; j++) {
+const orig = originalPalette[j];
+const dist = Math.abs(r - orig[0]) + Math.abs(g - orig[1]) + Math.abs(b - orig);
+if (dist < minDistance) {
+minDistance = dist;
+matchIdx = j;
+}
+}
+const targetColor = currentColors[matchIdx];
+destData[i] = targetColor[0];
+destData[i+1] = targetColor[1];
+destData[i+2] = targetColor;
+destData[i+3] = 255;
+}
+tempCtx.putImageData(imgDataCopy, 0, 0);
+ctx.clearRect(0, 0, 64, 64);
 ctx.imageSmoothingEnabled = false;
 ctx.drawImage(tempCanvas, 0, 0, 64, 64);
 }
 function refreshAllPreviews() {
-PALETTE_NAMES.forEach(name => renderSinglePreview(name));
+for (let i = 0; i < PALETTE_NAMES.length; i++) {
+renderSinglePreview(PALETTE_NAMES[i]);
+}
 }
 function exportPalettesZip() {
 if (!baseImageData) return alert("Please load a base sprite image first!");
 const zip = new JSZip();
-PALETTE_NAMES.forEach(name => {
+for (let n = 0; n < PALETTE_NAMES.length; n++) {
+let name = PALETTE_NAMES[n];
 let content = "JASC-PAL\r\n0100\r\n16\r\n";
-palettesData[name].forEach(rgb => {
-content += ${rgb[0]} ${rgb[1]} ${rgb[2]}\r\n;
-});
-zip.file(${name}.pal, content);
-});
+let colors = palettesData[name];
+for (let c = 0; c < colors.length; c++) {
+content += colors[c][0] + " " + colors[c][1] + " " + colors[c] + "\r\n";
+}
+zip.file(name + ".pal", content);
+}
 zip.generateAsync({type: "blob"}).then(function(content) {
 const link = document.createElement("a");
 link.href = URL.createObjectURL(content);
