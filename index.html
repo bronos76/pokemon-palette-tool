@@ -571,29 +571,6 @@ function regenerateSuggestedContextShades() {
     }
 }
 
-    
-    let baseHueBias = 0;
-    if (activePalette === "ruby") baseHueBias = 0;
-    else if (activePalette === "sapphire" || activePalette === "neptune" || activePalette === "tidal") baseHueBias = 210;
-    else if (activePalette === "emerald" || activePalette === "verdant" || activePalette === "veridian" || activePalette === "mint") baseHueBias = 120;
-    else if (activePalette === "sunset" || activePalette === "golden") baseHueBias = 35;
-    else if (activePalette === "crystal" || activePalette === "seabreeze") baseHueBias = 180;
-    else if (activePalette === "pastel" || activePalette === "pinkan_sorbet") baseHueBias = 320;
-    else baseHueBias = 45; 
-
-    for (let c = 0; c < 30; c++) {
-        let lValue = Math.floor(15 + (c % 5) * 16);
-        let hValue = Math.floor((baseHueBias + (Math.floor(c / 5) * 12)) % 360);
-        let sValue = (activePalette === "smoke" || activePalette === "melanistic" || activePalette === "obsidian" || activePalette === "ghost") ? 10 : 75;
-        
-        let hexStr = hslToHexStr(hValue, sValue, lValue);
-        const chip = document.createElement("div");
-        chip.className = "chip";
-        chip.style.background = hexStr;
-        chip.onclick = (function(hex) { return function() { pasteHexToSelectedTargetRow(hex); }; })(hexStr);
-        container.appendChild(chip);
-    }
-}
 
 function hslToHexStr(h, s, l) {
     s /= 100; l /= 100;
