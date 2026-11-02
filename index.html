@@ -518,7 +518,7 @@ function renderActiveSwatches() {
                     let r = parseInt(val.slice(0,2),16);
                     let g = parseInt(val.slice(2,4),16);
                     let b = parseInt(val.slice(4,6),16);
-                    updateColorValues(targetIndex, r, g, b);
+                    updateColorFromRGB(targetIndex, r, g, b);
                     if(targetIndex === selectedRowIndex) updateWorkspaceSlidersUI();
                 }
             };
