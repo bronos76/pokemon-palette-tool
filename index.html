@@ -602,41 +602,62 @@ function hslToRgb(h, s, l) {
     }
     return { r: Math.round(r * 255), g: Math.round(g * 255), b: Math.round(b * 255) };
 }
-
+// THE CORE ENGINE LOCK POINT: Updates data, renders graphics, and handles undo tracks
 function updateColorFromRGB(idx, r, g, b) {
-    captureUndoSnapshot(); // Save for Undo stack
-    paletteRedoStack = []; // Wipe Redo memory to preserve strict linear changes timeline
-    
+    // 1. Log undo/redo history matrices parameters paths 
+    captureUndoSnapshot();
+    paletteRedoStack = []; 
+
+    // 2. Set structural memory properties data 
     palettesData[activePalette][idx].red = r; 
     palettesData[activePalette][idx].green = g; 
     palettesData[activePalette][idx].blue = b;
-    // ... leave remainder of color sync blocks processing lines untouched
-
     
+    // 3. Re-render individual layout variant sprite preview 
     renderSinglePreview(activePalette);
     
-    let hexR = String(r.toString(16)).padStart(2, '0');
-    let hexG = String(g.toString(16)).padStart(2, '0');
+    // 4. Update index text fields safely to prevent phone focus cursor loops
+    let hexR = String(r.toString(16)).padStart(2, '0'); 
+    let hexG = String(g.toString(16)).padStart(2, '0'); 
     let hexB = String(b.toString(16)).padStart(2, '0');
     let rows = document.getElementById("swatchList").children;
     if (rows && rows[idx]) {
-        let chip = rows[idx].querySelector(".color-preview-chip");
+        let chip = rows[idx].querySelector(".color-preview-chip"); 
         if(chip) chip.style.background = "#" + hexR + hexG + hexB;
-        let txt = rows[idx].querySelector(".hex-input");
+        let txt = rows[idx].querySelector(".hex-input"); 
         if(txt && document.activeElement !== txt) txt.value = hexR + hexG + hexB;
-        let display = rows[idx].querySelector(".rgb-vals");
+        let display = rows[idx].querySelector(".rgb-vals"); 
         if(display) display.innerText = "R:" + String(r).padStart(3,' ') + " G:" + String(g).padStart(3,' ') + " B:" + String(b).padStart(3,' ');
     }
 }
 
+// Handles input changes from the Hue, Saturation, and Lightness track sliders
+function handleSliderChange() {
+    let h = parseInt(document.getElementById("sliderH").value);
+    let s = parseInt(document.getElementById("sliderS").value);
+    let l = parseInt(document.getElementById("sliderL").value);
+    
+    document.getElementById("valH").innerText = h + "°";
+    document.getElementById("valS").innerText = s + "%";
+    document.getElementById("valL").innerText = l + "%";
+    
+    let rgb = hslToRgb(h, s, l);
+    // Maps seamlessly over to our unified save function
+    updateColorFromRGB(selectedRowIndex, rgb.r, rgb.g, rgb.b);
+}
+
+// Handles clipboard chips and thematic preset choices pastes
 function pasteHexToSelectedTargetRow(hexString) {
     if (hexString.slice(0, 1) === "#") hexString = hexString.slice(1);
-    let r = parseInt(hexString.slice(0, 2), 16);
-    let g = parseInt(hexString.slice(2, 4), 16);
+    let r = parseInt(hexString.slice(0, 2), 16); 
+    let g = parseInt(hexString.slice(2, 4), 16); 
     let b = parseInt(hexString.slice(4, 6), 16);
-    updateColorValues(selectedRowIndex, r, g, b);
-    updateWorkspaceSlidersUI();
+    
+    updateColorFromRGB(selectedRowIndex, r, g, b); 
+    updateWorkspaceSlidersUI(); // Snap HSL track bars to match clipboard color values
 }
+
+
 
 function storeColorIntoClipboardSlot(slotIndex) {
     let rgb = palettesData[activePalette][selectedRowIndex];
