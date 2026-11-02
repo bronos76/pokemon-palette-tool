@@ -552,6 +552,26 @@ function regenerateSuggestedContextShades() {
     const container = document.getElementById("suggestedChips");
     container.innerHTML = "";
     
+    // Looks up your custom 30-color arrays, falls back to normal if a name mismatch occurs
+    let activePresetColors = EXPLICIT_SUGGESTED_COLORS[activePalette];
+    if (!activePresetColors) {
+        activePresetColors = EXPLICIT_SUGGESTED_COLORS["normal"];
+    }
+
+    // Explicitly draws your exact 30 custom hex values on screen
+    for (let c = 0; c < activePresetColors.length; c++) {
+        let hex = activePresetColors[c].trim();
+        const chip = document.createElement("div");
+        chip.className = "chip";
+        chip.style.background = hex;
+        chip.onclick = (function(h) { 
+            return function() { pasteHexToSelectedTargetRow(h); }; 
+        })(hex);
+        container.appendChild(chip);
+    }
+}
+
+    
     let baseHueBias = 0;
     if (activePalette === "ruby") baseHueBias = 0;
     else if (activePalette === "sapphire" || activePalette === "neptune" || activePalette === "tidal") baseHueBias = 210;
