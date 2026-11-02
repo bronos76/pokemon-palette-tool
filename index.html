@@ -52,16 +52,19 @@
 <body>
 
     <div class="header-actions">
-        <div class="btn btn-file">
-            1. Master ROM Asset (.png)
-            <input type="file" id="spriteInput" accept="image/png">
-        </div>
-        <div class="btn btn-file btn-orange">
-            Overwrite Open Variant Only
-            <input type="file" id="subInput" accept="image/png,.pal">
-        </div>
-        <button class="btn" onclick="exportPalettesZip()">Export ZIP Studio Bundle</button>
+    <div class="btn btn-file">
+        1. Master ROM Asset (.png)
+        <input type="file" id="spriteInput" accept="image/png">
     </div>
+    <div class="btn btn-file btn-orange">
+        Overwrite Open Variant Only
+        <input type="file" id="subInput" accept="image/png,.pal">
+    </div>
+    <button class="btn" onclick="exportPalettesZip()">Export ZIP Studio Bundle</button>
+    <button class="btn btn-orange" onclick="triggerUndoAction()">Undo</button>
+    <button class="btn btn-orange" onclick="triggerRedoAction()">Redo</button>
+</div>
+
 
     <div class="app-layout">
         <div class="matrix-container">
@@ -103,6 +106,118 @@
     </div>
 
 <script>
+
+let paletteUndoStack = []; // Array tracking prior states for rolling back
+let paletteRedoStack = []; // Array tracking undone states for rolling forward
+
+// Captures a snapshot clone of a target palette before modification occurs
+function captureUndoSnapshot() {
+    if (paletteUndoStack.length >= 30) {
+        paletteUndoStack.shift(); // Hard memory cap to keep mobile performance smooth
+    }
+    
+    let currentActiveColors = palettesData[activePalette];
+    let stateSnapshot = [];
+    for (let c = 0; c < 16; c++) {
+        stateSnapshot.push({
+            red: currentActiveColors[c].red,
+            green: currentActiveColors[c].green,
+            blue: currentActiveColors[c].blue
+        });
+    }
+    
+    paletteUndoStack.push({
+        targetPaletteName: activePalette,
+        colorArraySnapshot: stateSnapshot
+    });
+}
+
+// Executes an Undo operation, shifting the target back to the timeline history
+function triggerUndoAction() {
+    if (paletteUndoStack.length === 0) {
+        alert("Nothing left to undo!");
+        return;
+    }
+    
+    // 1. Snapshot our *current* state into the Redo stack before we overwrite it
+    let currentActiveColors = palettesData[activePalette];
+    let currentSnapshot = [];
+    for (let c = 0; c < 16; c++) {
+        currentSnapshot.push({
+            red: currentActiveColors[c].red,
+            green: currentActiveColors[c].green,
+            blue: currentActiveColors[c].blue
+        });
+    }
+    paletteRedoStack.push({
+        targetPaletteName: activePalette,
+        colorArraySnapshot: currentSnapshot
+    });
+    
+    // 2. Pop the prior state off the Undo stack and write it back into our working matrix
+    let previousState = paletteUndoStack.pop();
+    let targetName = previousState.targetPaletteName;
+    let savedColors = previousState.colorArraySnapshot;
+    
+    for (let c = 0; c < 16; c++) {
+        palettesData[targetName][c].red = savedColors[c].red;
+        palettesData[targetName][c].green = savedColors[c].green;
+        palettesData[targetName][c].blue = savedColors[c].blue;
+    }
+    
+    // 3. Force UI updates to clean displays maps containers
+    syncUIAfterTimelineChange(targetName);
+}
+
+// Executes a Redo operation, moving forward onto the un-done timeline history step
+function triggerRedoAction() {
+    if (paletteRedoStack.length === 0) {
+        alert("Nothing left to redo!");
+        return;
+    }
+    
+    // 1. Snapshot our *current* state back into the Undo stack so we can reverse the redo if needed
+    let currentActiveColors = palettesData[activePalette];
+    let currentSnapshot = [];
+    for (let c = 0; c < 16; c++) {
+        currentSnapshot.push({
+            red: currentActiveColors[c].red,
+            green: currentActiveColors[c].green,
+            blue: currentActiveColors[c].blue
+        });
+    }
+    paletteUndoStack.push({
+        targetPaletteName: activePalette,
+        colorArraySnapshot: currentSnapshot
+    });
+    
+    // 2. Pop the state off the Redo stack and re-apply it over our working matrix arrays allocation lines
+    let nextState = paletteRedoStack.pop();
+    let targetName = nextState.targetPaletteName;
+    let savedColors = nextState.colorArraySnapshot;
+    
+    for (let c = 0; c < 16; c++) {
+        palettesData[targetName][c].red = savedColors[c].red;
+        palettesData[targetName][c].green = savedColors[c].green;
+        palettesData[targetName][c].blue = savedColors[c].blue;
+    }
+    
+    // 3. Force UI updates to clean displays maps containers
+    syncUIAfterTimelineChange(targetName);
+}
+
+// Universal UI redraw routine for timeline actions
+function syncUIAfterTimelineChange(targetName) {
+    if (activePalette !== targetName) {
+        selectPalette(targetName);
+    } else {
+        renderSinglePreview(activePalette);
+        renderActiveSwatches();
+        updateWorkspaceSlidersUI();
+    }
+}
+
+ 
 const PALETTE_NAMES = [
     "normal", "shiny", "pastel", "shadow", "sunset", "neptune", "verdant",
     "super_shiny", "champagne", "smoke/platinum", "pinkan_berry", "crystal", "golden",
@@ -488,10 +603,15 @@ function hslToRgb(h, s, l) {
     return { r: Math.round(r * 255), g: Math.round(g * 255), b: Math.round(b * 255) };
 }
 
-function updateColorValues(idx, r, g, b) {
-    palettesData[activePalette][idx].red = r;
-    palettesData[activePalette][idx].green = g;
+function updateColorFromRGB(idx, r, g, b) {
+    captureUndoSnapshot(); // Save for Undo stack
+    paletteRedoStack = []; // Wipe Redo memory to preserve strict linear changes timeline
+    
+    palettesData[activePalette][idx].red = r; 
+    palettesData[activePalette][idx].green = g; 
     palettesData[activePalette][idx].blue = b;
+    // ... leave remainder of color sync blocks processing lines untouched
+
     
     renderSinglePreview(activePalette);
     
